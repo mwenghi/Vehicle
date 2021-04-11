@@ -1,6 +1,6 @@
 #include "Vehicle.h"
 
-Vehicle vehicle;
+Vehicle vehicle(true);
 
 void setup() {
   Serial.begin(115200);

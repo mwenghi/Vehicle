@@ -27,124 +27,142 @@ Lights::Lights(uint8_t frontLampPin, uint8_t frontLedPin, uint8_t rearLedPin)
 
 void Lights::init()
 {
-  
+  // initialize front leds
   FastLED.addLeds<WS2812B, FRONT_LED_PIN, GRB>(_frontLeds, 6);
+  // initialize rear leds
   FastLED.addLeds<WS2812B, REAR_LED_PIN, GRB>(_rearLeds, 6);
-  
+  // initialize front lamps
   pinMode(_frontLampPin, OUTPUT);
   
   _startBlinkerLoop();
+  _startAlertLoop();
+  
   offLights();
 }
-
 
 void Lights::iterate()
 {
   
   _handleLightLoops();
-  FastLED.show();
+  if (_hasChange) {
+    FastLED.show();
+    _hasChange = false;
+  }
 }
 
 
 bool Lights::startBlinkersAlert()
 {
   
-  _blinkAlert(true);  
-  return true;
+  return _blinkAlert(true);  
 }
 
 
 bool Lights::stopBlinkersAlert()
 {
-  
-  _blinkAlert(false);
-  return true;
-}
 
-bool Lights::startLightsAlert()
-{
-  
-  return true;
+  return _blinkAlert(false);
 }
 
 
-bool Lights::stopLightsAlert()
+bool Lights::startBreaking()
 {
-  
-  return true;
+
+  return _setBreak(true);
+}
+
+
+bool Lights::stopBreaking()
+{
+
+  return _setBreak(false);
+}
+
+bool Lights::startReverse()
+{
+
+  return _setReverse(true);
+}
+
+
+bool Lights::stopReverse()
+{
+
+  return _setReverse(false);
 }
 
 
 bool Lights::offLights()
 {
   
-  _setLights(MODE_OFF); 
-  return true;
+  return _setLights(MODE_OFF);
 }
 
 
 bool Lights::parkingLights()
 {  
   
-  _setLights(MODE_PARKING);
-  return true;
+  return _setLights(MODE_PARKING);
 }
 
 
 bool Lights::normalLights()
 {
-  
-  _setLights(MODE_NORMAL); 
-  return true;
+   
+  return _setLights(MODE_NORMAL);
 }
 
 
 bool Lights::distanceLights()
 {
   
-  _setLights(MODE_DISTANCE); 
-  return true;
+  return _setLights(MODE_DISTANCE);
+}
+
+bool Lights::alertLights()
+{
+  
+  return _setLights(MODE_ALERT);
 }
 
 
 bool Lights::startLeftBlinker()
 {
   
-  _modeRightBlinker && stopRightBlinker();  
-  _setBlinker(POSITION_LEFT, true);
-  return true;
+  return _setBlinker(POSITION_LEFT, true);
 }
 
 
 bool Lights::startRightBlinker()
 {
   
-  _modeLeftBlinker && stopLeftBlinker();  
-  _setBlinker(POSITION_RIGHT, true);
-  return true;
+  return _setBlinker(POSITION_RIGHT, true);
 }
 
 
 bool Lights::stopLeftBlinker()
 {
   
-  _setBlinker(POSITION_LEFT, false);
-  return true;
+  return _setBlinker(POSITION_LEFT, false);
 }
 
 
 bool Lights::stopRightBlinker()
 {
-  
-  _setBlinker(POSITION_RIGHT, false);
-  return true;
+
+  return _setBlinker(POSITION_RIGHT, false);
 }
 
+
+
+/** PRIVATE METHODS **/
 
 bool Lights::_setLights(LightStatus lightStatus)
 {
   
   _status = lightStatus;
+  
+  _lightAlert(lightStatus == MODE_ALERT);
   
   _setFrontLight(lightStatus);
   _setFrontLamp(lightStatus);
@@ -156,6 +174,8 @@ bool Lights::_setLights(LightStatus lightStatus)
 
 bool Lights::_blinkLeft(bool blinkStatus)
 {
+  
+  _hasChange = true;
   
   // switch off in non blink state or in blinker off in his cycle 
   if (!blinkStatus || !_blinkerLightState) {
@@ -174,6 +194,8 @@ bool Lights::_blinkLeft(bool blinkStatus)
 bool Lights::_blinkRight(bool blinkStatus)
 {
   
+  _hasChange = true;
+  
   // switch off in non blink state or in blinker off in his cycle 
   if (!blinkStatus || !_blinkerLightState) {
     
@@ -188,23 +210,19 @@ bool Lights::_blinkRight(bool blinkStatus)
 }
 
 
-bool Lights::_setBlinker(LightPosition lightPosition, bool lightStatus, bool forAlert = false)
+bool Lights::_setBlinker(LightPosition lightPosition, bool lightStatus)
 {
-  
-  _blinkerState = lightStatus;
+    
+  _blinkerState = lightStatus || _modeAlertBlinker;
   _blinkerLightState = lightStatus;
 
-  if (!forAlert) {
-    switch(lightPosition) {
-  
-       case POSITION_LEFT:
-          _modeLeftBlinker = lightStatus;
-          break;
-  
-       case POSITION_RIGHT:
-          _modeRightBlinker = lightStatus;
-          break;
-    }
+  if (lightPosition == POSITION_LEFT) {
+    
+    _modeLeftBlinker = lightStatus;
+    
+  } else if (lightPosition == POSITION_RIGHT) {
+   
+    _modeRightBlinker = lightStatus; 
   }
 
   _resetBlinkerLoop();
@@ -223,13 +241,21 @@ bool Lights::_updateBlinkers()
   return true;
 }
 
+bool Lights::_updateLights()
+{
+  
+  _setLights(_status);
+
+  return true;
+}
+
 
 bool Lights::_blinkAlert(bool blinkStatus)
 {
   
   _modeAlertBlinker = blinkStatus;
   _blinkerLightState = blinkStatus;
-  _blinkerState = blinkStatus;
+  _blinkerState = blinkStatus || _modeLeftBlinker || _modeRightBlinker;
   
   _resetBlinkerLoop();
   _updateBlinkers();
@@ -237,6 +263,15 @@ bool Lights::_blinkAlert(bool blinkStatus)
   return true;
 }
 
+
+bool Lights::_lightAlert(bool alertStatus)
+{
+  
+  _modeAlertLights = alertStatus;  
+  _resetAlertLoop();
+  
+  return true;
+}
 
 bool Lights::_handleBlinkerLoop()
 {
@@ -256,8 +291,10 @@ bool Lights::_handleAlertLoop()
 {  
   
   if (_alertLoop.justFinished()) {
-    _alertLoop.repeat();
     
+    _alertLoop.repeat();
+    _alertLightState = !_alertLightState;
+    _updateLights();
   }
   
   return true;
@@ -282,6 +319,14 @@ bool Lights::_startBlinkerLoop()
 }
 
 
+bool Lights::_startAlertLoop()
+{
+  
+  _alertLoop.start(ALERT_INTERVAL); 
+  return true;
+}
+
+
 bool Lights::_resetBlinkerLoop()
 {
   
@@ -290,14 +335,38 @@ bool Lights::_resetBlinkerLoop()
 }
 
 
+bool Lights::_resetAlertLoop()
+{
+  
+  _alertLoop.restart(); 
+  return true;
+}
+
+
 bool Lights::_setFrontLight(LightStatus lightStatus)
 {
+  
+  _hasChange = true;
   
   switch(lightStatus) {
 
     case MODE_ALERT:
-    
-      // TODO: blink
+
+      if (_alertLightState) {
+        
+        _frontLeds[FRONT_LED_LEFT] = CRGB::White;
+        _frontLeds[FRONT_LED_RIGHT] = CRGB::White;
+        _frontLeds[FRONT_PARKING_LEFT] = CRGB::White;
+        _frontLeds[FRONT_PARKING_RIGHT] = CRGB::White;  
+        
+      } else {
+          
+        _frontLeds[FRONT_LED_LEFT] = CRGB::Black;
+        _frontLeds[FRONT_LED_RIGHT] = CRGB::Black;
+        _frontLeds[FRONT_PARKING_LEFT] = CRGB::Black;
+        _frontLeds[FRONT_PARKING_RIGHT] = CRGB::Black;
+      }
+      
       break;
         
     case MODE_OFF:
@@ -339,19 +408,35 @@ bool Lights::_setFrontLight(LightStatus lightStatus)
 bool Lights::_setRearLight(LightStatus lightStatus)
 {
   
+  _hasChange = true;
+  
   switch(lightStatus) {
 
     case MODE_ALERT:
     
-      // TODO: blink
+      if (_alertLightState) {
+          
+        _rearLeds[REAR_LED_LEFT] = CRGB(REAR_LED_LEVEL_ALERT, 0, 0);
+        _rearLeds[REAR_LED_RIGHT] = CRGB(REAR_LED_LEVEL_ALERT, 0, 0);
+        _rearLeds[REAR_REVERSE_LEFT] = CRGB(REAR_LED_LEVEL_ALERT, 0, 0);
+        _rearLeds[REAR_REVERSE_RIGHT] = CRGB(REAR_LED_LEVEL_ALERT, 0, 0);
+        
+      } else {
+        
+        _rearLeds[REAR_LED_LEFT] = CRGB(REAR_LED_LEVEL_OFF, 0, 0);
+        _rearLeds[REAR_LED_RIGHT] = CRGB(REAR_LED_LEVEL_OFF, 0, 0);
+        _rearLeds[REAR_REVERSE_LEFT] = CRGB(REAR_LED_LEVEL_OFF, 0, 0);
+        _rearLeds[REAR_REVERSE_RIGHT] = CRGB(REAR_LED_LEVEL_OFF, 0, 0);
+      }
+      
       break;
         
     case MODE_OFF:
     
-      _rearLeds[REAR_LED_LEFT] = CRGB::Black;
-      _rearLeds[REAR_LED_RIGHT] = CRGB::Black;
-      _rearLeds[REAR_REVERSE_LEFT] = CRGB::Black;
-      _rearLeds[REAR_REVERSE_RIGHT] = CRGB::Black;
+      _rearLeds[REAR_LED_LEFT] = CRGB(REAR_LED_LEVEL_OFF, 0, 0);
+      _rearLeds[REAR_LED_RIGHT] = CRGB(REAR_LED_LEVEL_OFF, 0, 0);
+      _rearLeds[REAR_REVERSE_LEFT] = CRGB(REAR_LED_LEVEL_OFF, 0, 0);
+      _rearLeds[REAR_REVERSE_RIGHT] = CRGB(REAR_LED_LEVEL_OFF, 0, 0);
       break;
         
     case MODE_PARKING:
@@ -378,6 +463,8 @@ bool Lights::_setRearLight(LightStatus lightStatus)
       _rearLeds[REAR_REVERSE_RIGHT] = CRGB(REAR_LED_LEVEL_DISTANCE, 0, 0);
       break;
   }
+
+  _updateBreakAndReverse();
   
   return true;
 }
@@ -390,7 +477,15 @@ bool Lights::_setFrontLamp(LightStatus lightStatus)
 
     case MODE_ALERT:
     
-      // TODO: blink
+      if (_alertLightState) {
+         
+        analogWrite(FRONT_LAMP_PIN, DISTANCE_LAMP_LEVEL_ALERT);
+        
+      } else {
+        
+        analogWrite(FRONT_LAMP_PIN, DISTANCE_LAMP_LEVEL_OFF);
+      }
+      
       break;
         
     case MODE_OFF:
@@ -418,19 +513,77 @@ bool Lights::_setFrontLamp(LightStatus lightStatus)
 }
 
 
-bool Lights::_setBreakLight(bool breakStatus)
+bool Lights::_setBreak(bool breakStatus)
 {
   
-   if (breakStatus) {
+  _modeBreak = breakStatus;
+  _setBreakLight(breakStatus);
+
+  return true;
+}
+
+
+bool Lights::_setReverse(bool reverseStatus)
+{
+  
+  _modeReverse = reverseStatus;
+  _setReverseLight(reverseStatus);
+
+  return true;
+}
+
+
+bool Lights::_updateBreakAndReverse()
+{
+  
+  _setBreakLight(_modeBreak, true);
+  _setReverseLight(_modeReverse, true);
+
+  return true;
+}
+
+
+bool Lights::_setBreakLight(bool breakStatus, bool onlyOn)
+{
+  
+  _hasChange = true;
+  
+  if (breakStatus) {
 
     _rearLeds[REAR_LED_LEFT] = CRGB(BREAK_LIGHT_LEVEL_ON, 0, 0);
-    _rearLeds[REAR_LED_RIGHT] = CRGB(BREAK_LIGHT_LEVEL_ON, 0, 0);    
-    
-   } else {
+    _rearLeds[REAR_LED_RIGHT] = CRGB(BREAK_LIGHT_LEVEL_ON, 0, 0);   
 
-    _rearLeds[REAR_LED_LEFT] = CRGB(BREAK_LIGHT_LEVEL_OFF, 0, 0);
-    _rearLeds[REAR_LED_RIGHT] = CRGB(BREAK_LIGHT_LEVEL_OFF, 0, 0);   
-   }
+    if (!_modeReverse) {
+      _rearLeds[REAR_REVERSE_LEFT] = CRGB(BREAK_LIGHT_LEVEL_ON, 0, 0);
+      _rearLeds[REAR_REVERSE_RIGHT] = CRGB(BREAK_LIGHT_LEVEL_ON, 0, 0);
+    }
+
+  } else if (!onlyOn) {
+    
+    _setRearLight(_status);
+  }
+  
+  return true;
+}
+
+
+bool Lights::_setReverseLight(bool reverseStatus, bool onlyOn)
+{
+  
+  _hasChange = true;
+  
+  if (reverseStatus) {
+
+    // 255 shades of gray
+    CRGB color = CRGB(REVERSE_LIGHT_LEVEL_ON, REVERSE_LIGHT_LEVEL_ON, REVERSE_LIGHT_LEVEL_ON);
+    
+    _rearLeds[REAR_REVERSE_LEFT] = color;
+    _rearLeds[REAR_REVERSE_RIGHT] = color;
+
+  } else if (!onlyOn) {
+    
+    _setRearLight(_status);
+  }
   
   return true;
 }

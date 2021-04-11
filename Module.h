@@ -1,11 +1,15 @@
 #pragma once
 
+#include "Log.h"
+
 class Module {
 
   public:
     virtual void init();
     virtual void iterate();
-
-  private:
+    bool setLog(Log *debugLog);
+    
+  protected:
+    Log _debugLog;
     
 };

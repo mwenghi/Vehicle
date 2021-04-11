@@ -14,6 +14,7 @@
 #include <FastLED.h>
 #include <millisDelay.h>
 #include "Module.h"
+#include "Log.h"
 
 // PINS
 #define FRONT_LAMP_PIN 13
@@ -25,6 +26,7 @@
 #define DISTANCE_LAMP_LEVEL_PARKING 0
 #define DISTANCE_LAMP_LEVEL_NORMAL 3
 #define DISTANCE_LAMP_LEVEL_DISTANCE 100
+#define DISTANCE_LAMP_LEVEL_ALERT 100
 
 #define FRONT_LED_LEVEL_OFF 0
 #define FRONT_LED_LEVEL_PARKING 0
@@ -34,18 +36,21 @@
 
 #define REAR_LED_LEVEL_OFF 0
 #define REAR_LED_LEVEL_PARKING 0
-#define REAR_LED_LEVEL_PARKING_EMERGENCY 10
-#define REAR_LED_LEVEL_NORMAL 33
-#define REAR_LED_LEVEL_DISTANCE 33
+#define REAR_LED_LEVEL_PARKING_EMERGENCY 3
+#define REAR_LED_LEVEL_NORMAL 3
+#define REAR_LED_LEVEL_DISTANCE 3
+#define REAR_LED_LEVEL_ALERT 100
 
 #define BREAK_LIGHT_LEVEL_OFF 0
 #define BREAK_LIGHT_LEVEL_ON 100
+#define REVERSE_LIGHT_LEVEL_OFF 0
+#define REVERSE_LIGHT_LEVEL_ON 100
 
 #define LEDS_COUNT 6
 
 // INTERVALS
 #define BLINKER_INTERVAL 777
-#define ALERT_INTERVAL 333
+#define ALERT_INTERVAL 269
 
 #define FRONT_PARKING_LEFT 0
 #define FRONT_PARKING_RIGHT 3
@@ -83,22 +88,28 @@ class Lights : public Module {
     // alerts
     bool startBlinkersAlert();
     bool stopBlinkersAlert();
-    bool startLightsAlert();
-    bool stopLightsAlert();
     // lights
     bool offLights();
     bool parkingLights();
     bool normalLights();
     bool distanceLights();
+    bool alertLights();
     // blinkers
     bool startLeftBlinker();
     bool startRightBlinker();
     bool stopLeftBlinker();
     bool stopRightBlinker();
-
+    bool setLog(Log *debugLog);
+    // breaks
+    bool startBreaking();
+    bool stopBreaking();
+    // reverse
+    bool startReverse();
+    bool stopReverse();
 
   private:
-  
+
+    Log *_debug;
     LightStatus _status;
     millisDelay _blinkerLoop;
     millisDelay _alertLoop;
@@ -108,7 +119,8 @@ class Lights : public Module {
     uint8_t _frontLedPin;
     uint8_t _rearLedPin;
     uint8_t _frontLampPin;
-    
+
+    bool _hasChange = true;
     bool _modeBreak = false;
     bool _modeReverse = false;
     bool _modeLeftBlinker = false;
@@ -117,22 +129,31 @@ class Lights : public Module {
     bool _modeAlertLights = false;
     bool _blinkerState = false;    
     bool _blinkerLightState = false;    
+    bool _alertLightState = false;    
 
     bool _startBlinkerLoop();
+    bool _startAlertLoop();
     bool _setLights(LightStatus lightStatus);
     bool _setFrontLamps(LightStatus lightStatus);
     bool _setFrontLight(LightStatus lightStatus);
     bool _setRearLight(LightStatus lightStatus);
     bool _setFrontLamp(LightStatus lightStatus);
-    bool _setBreakLight(bool breakStatus);
-    bool _setBlinker(LightPosition lightPosition, bool lightStatus, bool forAlert = false);
+    bool _setBreakLight(bool breakStatus, bool onlyOn = false);
+    bool _setBreak(bool breakStatus);
+    bool _setReverseLight(bool reverseStatus, bool onlyOn = false);
+    bool _setReverse(bool reverseStatus);
+    bool _updateBreakAndReverse();
+    bool _setBlinker(LightPosition lightPosition, bool lightStatus);
     bool _updateBlinkers();
+    bool _updateLights();
     bool _resetBlinkerLoop();
+    bool _resetAlertLoop();
     bool _handleLightLoops();
     bool _handleBlinkerLoop();
     bool _handleAlertLoop();
     bool _blinkLeft(bool blinkStatus);
     bool _blinkRight(bool blinkStatus);
     bool _blinkAlert(bool blinkStatus);
+    bool _lightAlert(bool alertStatus);
     
 };
