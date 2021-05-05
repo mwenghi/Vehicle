@@ -10,15 +10,16 @@
  *     2        1       0                       3       4       5    
  *  BLINKER    LED    REVERSE                REVERSE   LED    BLINKER             R E A R
  */
+ 
+#define FASTLED_ALLOW_INTERRUPTS 0
 
 #include <FastLED.h>
 #include <millisDelay.h>
 #include "Module.h"
-#include "Log.h"
 
 // PINS
 #define FRONT_LAMP_PIN 13
-#define FRONT_LED_PIN 14
+#define FRONT_LED_PIN 10
 #define REAR_LED_PIN 12
 
 // LEVELS
@@ -99,7 +100,6 @@ class Lights : public Module {
     bool startRightBlinker();
     bool stopLeftBlinker();
     bool stopRightBlinker();
-    bool setLog(Log *debugLog);
     // breaks
     bool startBreaking();
     bool stopBreaking();
@@ -109,7 +109,6 @@ class Lights : public Module {
 
   private:
 
-    Log *_debug;
     LightStatus _status;
     millisDelay _blinkerLoop;
     millisDelay _alertLoop;
